@@ -1,76 +1,76 @@
 # TarkovGym
 
-Скрипт для миниигры тренировки в Escape from Tarkov на Windows. Захватывает выбранную область экрана, отслеживает сжимающийся шестигранник и нажимает ЛКМ в момент совпадения с целевой рамкой.
+A Windows script for the gym minigame in Escape from Tarkov. It captures a selected screen region, tracks the shrinking hexagon, and clicks the left mouse button when it aligns with the target border.
 
-Работает с изображением экрана, без чтения памяти игры. Логи и скриншоты не сохраняются. Точность зависит от частоты кадров, задержек системы и масштаба интерфейса.
+Uses screen capture without reading game memory. No logs or screenshots are saved to disk. Accuracy depends on frame rate, system latency, and UI scaling.
 
-## Установка
+## Installation
 
-Требуются **Windows** и **Python 3.11 или новее**.
+Requires **Windows** and **Python 3.11 or later**.
 
-Скачай репозиторий и открой PowerShell в папке проекта:
+Download the repository and open PowerShell in the project folder:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements.txt
 ```
 
-## Настройка области
+## Capture area setup
 
-1. Запусти `configure.bat`.
-2. Открой миниигру и нажми **F1**. Скриншот делается только после нажатия.
-3. Выдели область мышью: миниигра должна находиться примерно по центру, с запасом для самого большого внешнего контура.
-4. Нажми **Enter**, чтобы сохранить координаты в `config.json`.
+1. Run `configure.bat`.
+2. Open the minigame and press **F1**. The screen is captured only after you press the key.
+3. Drag to select an area. Keep the minigame roughly centered and leave enough space for the largest outer hexagon.
+4. Press **Enter** to save the coordinates to `config.json`.
 
-Область можно перерисовать. **C** отменяет настройку при фокусе на окне выбора, **F2** отменяет глобально. При отмене существующие настройки не меняются.
+You can redraw the selection. Press **C** to cancel while the selection window has focus, or **F2** to cancel from any window. Cancelling leaves your existing settings unchanged.
 
-## Запуск
+## Usage
 
-Запусти `run_auto.bat`, верни фокус игре и нажми **F1**.
+Run `run_auto.bat`, switch back to the game, and press **F1**.
 
-| Клавиша | Действие |
+| Key | Action |
 | --- | --- |
-| **F1** | Старт / пауза |
-| **F2** | Выход |
+| **F1** | Start / pause |
+| **F2** | Exit |
 
-Закрытие окна предпросмотра также завершает программу. **Escape** не управляет скриптом.
+Closing the preview window also exits the program. **Escape** does not control the script.
 
-В окне отображаются состояние, число отправленных кликов и распознанных зелёных/красных результатов за запуск. Счётчики результатов основаны на распознавании изображения. Держи окно предпросмотра за пределами области захвата, чтобы оно не попадало в кадр.
+The preview shows the current status, the number of clicks sent, and detected green/red results for the current session. Result counters rely on image recognition. Keep the preview window outside the capture area so it does not appear in the captured image.
 
-## Дополнительные параметры
+## Command-line options
 
 ```powershell
-# Только предпросмотр и расчёт, без нажатий
+# Preview and timing detection only, without clicking
 .\.venv\Scripts\python gym.py
 
-# Автоматические клики без окна предпросмотра
+# Automatic clicking without the preview window
 .\.venv\Scripts\python gym.py --click --no-preview
 
-# Список мониторов
+# List monitors
 .\.venv\Scripts\python gym.py --list-monitors
 ```
 
-| Параметр | Назначение |
+| Option | Description |
 | --- | --- |
-| `--click` | Включить реальные нажатия ЛКМ |
-| `--configure` | Выбрать область, сохранить и выйти |
-| `--monitor N` | Выбрать экран по индексу из `--list-monitors` |
-| `--roi X Y W H` | Область относительно выбранного монитора, в пикселях |
-| `--latency-ms 20` | Ожидаемая задержка обработки ввода игрой |
-| `--click-hold-ms 30` | Длительность удержания ЛКМ |
-| `--margin 2` | Отступ от границ целевой рамки; ограничивается её шириной |
-| `--no-preview` | Отключить предпросмотр; F1/F2 продолжают работать |
+| `--click` | Enable actual left mouse clicks |
+| `--configure` | Select a capture area, save it, and exit |
+| `--monitor N` | Select a monitor using its index from `--list-monitors` |
+| `--roi X Y W H` | Capture area in pixels relative to the selected monitor: X, Y, width, height |
+| `--latency-ms 20` | Expected delay before the game processes mouse input |
+| `--click-hold-ms 30` | How long to hold the left mouse button, in milliseconds |
+| `--margin 2` | Inset from the target border edges, in pixels; limited by the border width |
+| `--no-preview` | Hide the preview window; F1/F2 still work |
 
-Параметры `--monitor` и `--roi` переопределяют конфиг на один запуск. Без настройки монитор выбирается по основному экрану Windows. Индексы библиотеки захвата могут отличаться от номеров экранов в настройках Windows.
+`--monitor` and `--roi` override the configuration for a single run. Without a configured monitor, the script uses the Windows primary display. Capture library indices may differ from the display numbers shown in Windows settings.
 
-После перемещения интерфейса или изменения разрешения перезапусти скрипт и при необходимости заново выбери область.
+After moving the game UI or changing resolution, restart the script and reconfigure the capture area if needed.
 
-## Файлы проекта
+## Project files
 
-- `gym.py` — захват, распознавание, расчёт тайминга и интерфейс.
-- `run_auto.bat` — запуск автоматических кликов.
-- `configure.bat` — настройка области захвата.
-- `requirements.txt` — зависимости Python.
-- `config.example.json` — пример структуры настроек.
+- `gym.py` — screen capture, detection, timing, and preview interface.
+- `run_auto.bat` — start automatic clicking.
+- `configure.bat` — configure the capture area.
+- `requirements.txt` — Python dependencies.
+- `config.example.json` — example configuration structure.
 
-`config.json` создаётся при настройке и содержит локальные параметры экрана. Он, виртуальное окружение и временные файлы исключены из Git.
+`config.json` is created during setup and stores your local display settings. It, the virtual environment, and temporary files are excluded from Git.
