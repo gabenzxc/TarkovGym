@@ -6,6 +6,16 @@ Uses screen capture without reading game memory. No logs or screenshots are save
 
 ## Installation
 
+### Standalone Windows EXE
+
+Build the executable by running `build.bat` on Windows with Python installed. The result is `dist/TarkovGym.exe`; Python and BAT files are not needed on the destination computer.
+
+Double-click the EXE, select the monitor, then choose **Configure capture area** or **Start**. Setup waits for **F1** before capturing the screen. Settings are saved in `config.json` next to the EXE, not inside its temporary extraction folder. Keep the EXE in a writable folder. The config is created automatically; you do not need to ship your personal settings. Closing setup cancels it. After configuration, the launcher opens again.
+
+The EXE also supports command-line options, for example `TarkovGym.exe --configure` and `TarkovGym.exe --click`. Start uses automatic clicks, initially paused until **F1**. The existing Python/BAT launchers remain available for source installations.
+
+### Run from source
+
 Requires **Windows** and **Python 3.11 or later**.
 
 Download the repository and open PowerShell in the project folder:

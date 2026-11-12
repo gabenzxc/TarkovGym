@@ -10,3 +10,6 @@ config.json
 .vscode/
 Thumbs.db
 .DS_Store
+build/
+dist/
+*.spec

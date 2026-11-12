@@ -12,6 +12,77 @@ import cv2
 import numpy as np
 
 
+def application_directory():
+    # A one-file bundle extracts __file__ to a temporary directory.
+    return Path(sys.executable).resolve().parent if getattr(sys, 'frozen', False) else Path(__file__).resolve().parent
+
+
+def launcher():
+    import tkinter as tk
+    from tkinter import ttk
+    import mss
+
+    action = None
+    root = tk.Tk()
+    root.title('Tarkov Gym')
+    root.geometry('440x330')
+    root.resizable(False, False)
+    root.configure(bg='#191d21')
+    style = ttk.Style(root)
+    style.theme_use('clam')
+    style.configure('TButton', font=('Segoe UI', 11), padding=10)
+    style.configure('TCombobox', padding=5)
+    with mss.MSS() as capture:
+        monitors = list(capture.monitors[1:])
+    options = [f"{i}: {m['width']} x {m['height']}" +
+               (' (primary)' if m['left'] == m['top'] == 0 else '')
+               for i, m in enumerate(monitors, 1)]
+    primary = next((i for i, m in enumerate(monitors) if m['left'] == m['top'] == 0), 0)
+    try:
+        saved = json.loads((application_directory() / 'config.json').read_text(encoding='utf-8-sig'))
+        selected = saved.get('monitor', primary + 1)
+        if type(selected) is not int or not 1 <= selected <= len(monitors):
+            selected = primary + 1
+    except (OSError, ValueError, AttributeError):
+        selected = primary + 1
+
+    def choose(value):
+        nonlocal action
+        action = (value, monitor.current() + 1)
+        root.destroy()
+
+    tk.Label(root, text='TARKOV / GYM', bg='#191d21', fg='#eef2f5',
+             font=('Segoe UI', 21)).pack(pady=(22, 6))
+    tk.Label(root, text='F1  Start / Pause     F2  Exit', bg='#191d21', fg='#a4b0ba',
+             font=('Segoe UI', 10)).pack(pady=(0, 18))
+    monitor = ttk.Combobox(root, values=options, state='readonly', width=36)
+    monitor.pack(padx=30, fill='x')
+    if options:
+        monitor.current(selected - 1)
+    ttk.Button(root, text='Start', command=lambda: choose('start')).pack(padx=30, pady=(14, 8), fill='x')
+    ttk.Button(root, text='Configure capture area', command=lambda: choose('configure')).pack(padx=30, fill='x')
+    tk.Label(root, text='Settings are saved next to the application.', bg='#191d21', fg='#a4b0ba',
+             font=('Segoe UI', 9)).pack(pady=15)
+    root.mainloop()
+    return action
+
+
+def capture_prompt(stop):
+    """Visible instructions while waiting for a global hotkey in a windowed EXE."""
+    import tkinter as tk
+    root = tk.Tk()
+    root.title('Tarkov Gym - Capture setup')
+    root.geometry('430x165')
+    root.resizable(False, False)
+    root.configure(bg='#191d21')
+    tk.Label(root, text='Open the minigame, then press F1', font=('Segoe UI', 14),
+             bg='#191d21', fg='#eef2f5').pack(pady=(24, 12))
+    tk.Label(root, text='The screenshot will be taken after F1.\nF2 or closing this window cancels setup.',
+             font=('Segoe UI', 10), bg='#191d21', fg='#a4b0ba').pack()
+    root.protocol('WM_DELETE_WINDOW', stop.set)
+    return root
+
+
 def wait_until(deadline, stop):
     """Use coarse waits away from the deadline and a short precise final wait."""
     while not stop.is_set():
@@ -315,7 +386,7 @@ def select_region(snapshot, cancelled):
         cv2.destroyAllWindows()
 
 
-def main():
+def main(argv=None):
     import mss
     from pynput import keyboard, mouse
 
@@ -332,8 +403,8 @@ def main():
     parser.add_argument('--no-preview', action='store_true')
     parser.add_argument('--click-hold-ms', type=float, default=30,
                         help='Duration of left-button press')
-    args = parser.parse_args()
-    config_path = Path(__file__).with_name('config.json')
+    args = parser.parse_args(argv)
+    config_path = application_directory() / 'config.json'
     config = {}
     if config_path.exists():
         try:
@@ -352,7 +423,7 @@ def main():
             parser.error(f'Invalid config {config_path}: {exc}')
         if args.monitor is None:
             args.monitor = monitor_config
-        if args.roi is None:
+        if args.roi is None and (args.monitor is None or args.monitor == monitor_config):
             args.roi = roi_config
     if args.configure:
         args.roi = None
@@ -406,16 +477,25 @@ def main():
             print('Open the minigame, then press F1 to capture the screen. F2: cancel.', flush=True)
             setup_listener = keyboard.Listener(on_press=setup_key)
             setup_listener.start()
+            prompt = capture_prompt(stop)
             try:
                 while not ready.wait(.05):
+                    prompt.update()
                     if stop.is_set():
                         return
                 if stop.is_set():
+                    return
+                prompt.destroy()
+                prompt = None
+                # Let Windows repaint the desktop after dismissing setup instructions.
+                if stop.wait(.15):
                     return
                 snapshot = np.array(capture.grab(monitor))[:, :, :3].copy()
                 print('Drag to select. Enter: save; C: cancel (selection window must have focus).', flush=True)
                 selection = select_region(snapshot, stop)
             finally:
+                if prompt is not None:
+                    prompt.destroy()
                 setup_listener.stop()
                 setup_listener.join(timeout=1)
             if selection is None:
@@ -492,5 +572,26 @@ def main():
             cv2.destroyAllWindows()
 
 
+def entrypoint():
+    if getattr(sys, 'frozen', False) and len(sys.argv) == 1:
+        while True:
+            action = launcher()
+            if action is None:
+                return
+            mode, monitor = action
+            main(['--monitor', str(monitor), '--configure' if mode == 'configure' else '--click'])
+            if mode == 'start':
+                return
+    else:
+        main()
+
+
 if __name__ == '__main__':
-    main()
+    try:
+        entrypoint()
+    except Exception as exc:
+        if getattr(sys, 'frozen', False):
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None, str(exc), 'Tarkov Gym - Error', 0x10)
+            sys.exit(1)
+        raise
